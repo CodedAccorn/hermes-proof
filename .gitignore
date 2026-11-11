@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.test-deps/
+.hermes-proof/
+demo.txt
+native-demo.txt
+native-test-prompt.txt
