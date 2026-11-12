@@ -24,7 +24,17 @@ This is the hackathon release. It verifies declared conditions; it does **not** 
 | `schemas.py` | Hermes-facing JSON schemas |
 | `tools.py` | Stable public import surface for the MVP tool names |
 
-File verification defaults to the gateway working directory. Set `HERMES_PROOF_ROOT` to the project directory the gateway is allowed to verify. Evidence defaults to `.hermes-proof/evidence` under the gateway working directory; set `HERMES_PROOF_DATA_DIR` to a stable gateway-owned directory for production-like runs. Evidence survives process/gateway restarts when the working directory or configured data directory remains the same.
+File verification has no implicit root and refuses to run until `verification_root` is configured in the plugin settings. This prevents a gateway launched from a home directory from exposing that directory. Standalone development may explicitly set `HERMES_PROOF_ROOT`; it never falls back to the process working directory.
+
+```yaml
+plugins:
+  entries:
+    hermes-proof:
+      settings:
+        verification_root: C:\\path\\to\\the\\project
+```
+
+Evidence is stored per active Hermes profile under `<HERMES_HOME>/hermes-proof/evidence` using Hermes' official `get_hermes_home()` API. Targets inside the active Hermes profile are forbidden. HermesProof also refuses common credential locations and file types including `.env*`, `auth.json`, private-key formats, `.ssh`, `.aws`, and `.config/gcloud`, even when they are inside the configured verification root.
 
 ## Contracts
 
@@ -46,7 +56,7 @@ Copy the directory to `~/.hermes/plugins/hermes-proof` (or `%LOCALAPPDATA%\herme
 
 ### Native validation record
 
-On 2026-11-11, the v0.2 tools were manually validated through a native Hermes Windows session with `HERMES_PROOF_ROOT` set to the project directory:
+On 2026-11-11, the v0.2 tools were manually validated through a native Hermes Windows session with the verification root explicitly set to the project directory:
 
 - A matching `file_contains` check returned `verified` with persisted report `d41c8682-0995-4c08-bac5-6fac3736a1a0`.
 - The same contract against changed content returned `failed` with persisted report `52b18913-5e27-4c29-b3f8-9166597db34d`.
@@ -75,7 +85,7 @@ It produces a `verified` positive result, changes the observed artifact, produce
 python -m pytest -q
 ```
 
-The suite covers positive/negative MVP regression behavior, malformed contracts, inaccessible content targets, traversal, absolute paths, symlink escape where the OS permits creating one, hashes, JSON paths, persistence, and report-ID traversal.
+The suite covers positive/negative MVP regression behavior, an unset root, malformed contracts, inaccessible content targets, traversal, absolute paths, symlink escape where the OS permits creating one, Hermes-profile and credential denial, hashes, JSON paths, per-profile persistence, and report-ID traversal.
 
 ## v1.0 roadmap (not implemented)
 

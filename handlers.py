@@ -18,6 +18,7 @@ def _json(value):
 
 
 def proof_verify(checks=None, label="", **kwargs):
+    configured_root = kwargs.pop("_verification_root", None)
     if isinstance(checks, dict):
         payload = checks
         unknown = set(payload) - {"checks", "label"}
@@ -33,7 +34,16 @@ def proof_verify(checks=None, label="", **kwargs):
     except contracts.ContractError as exc:
         return _json({"status": "unverified", "error": str(exc)})
 
-    root = Path(os.environ.get("HERMES_PROOF_ROOT", Path.cwd()))
+    configured_root = configured_root or os.environ.get("HERMES_PROOF_ROOT")
+    if not isinstance(configured_root, (str, os.PathLike)) or not str(configured_root).strip():
+        return _json({"status": "unverified", "error": "verification root is not configured"})
+    root = Path(configured_root).expanduser()
+    try:
+        root = root.resolve(strict=True)
+        if not root.is_dir():
+            raise OSError
+    except (OSError, RuntimeError):
+        return _json({"status": "unverified", "error": "verification root is not an accessible directory"})
     results = []
     for item in parsed:
         try:
@@ -56,7 +66,7 @@ def proof_verify(checks=None, label="", **kwargs):
     }
     try:
         evidence.save(report)
-    except OSError as exc:
+    except (OSError, RuntimeError) as exc:
         report["status"] = "unverified"
         report["persistence_error"] = f"evidence could not be persisted: {exc.__class__.__name__}"
     return _json(report)
@@ -73,7 +83,7 @@ def proof_report(report_id=None, **kwargs):
         report_id = kwargs.get("report_id")
     try:
         report = evidence.load(report_id)
-    except ValueError as exc:
+    except (ValueError, RuntimeError) as exc:
         return _json({"status": "unverified", "error": str(exc)})
     if report is None:
         return _json({"status": "unverified", "reason": "No matching persisted verification report exists"})

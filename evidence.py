@@ -11,8 +11,15 @@ _LOCK = threading.RLock()
 
 
 def data_dir() -> Path:
-    configured = os.environ.get("HERMES_PROOF_DATA_DIR")
-    return Path(configured) if configured else Path.cwd() / ".hermes-proof" / "evidence"
+    try:
+        from hermes_constants import get_hermes_home
+        home = Path(get_hermes_home())
+    except ImportError:
+        configured = os.environ.get("HERMES_HOME")
+        if not configured:
+            raise RuntimeError("Hermes profile home is unavailable") from None
+        home = Path(configured)
+    return home.expanduser().resolve(strict=False) / "hermes-proof" / "evidence"
 
 
 def save(report: dict[str, Any]) -> None:

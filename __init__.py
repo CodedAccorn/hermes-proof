@@ -7,5 +7,9 @@ except ImportError:  # Standalone plugin-loader/test compatibility.
 
 
 def register(ctx):
-    ctx.register_tool(name='proof_verify', toolset='hermes-proof', schema=schemas.VERIFY, handler=tools.proof_verify)
+    def configured_verify(*args, **kwargs):
+        kwargs['_verification_root'] = ctx.get_config('verification_root', '')
+        return tools.proof_verify(*args, **kwargs)
+
+    ctx.register_tool(name='proof_verify', toolset='hermes-proof', schema=schemas.VERIFY, handler=configured_verify)
     ctx.register_tool(name='proof_report', toolset='hermes-proof', schema=schemas.REPORT, handler=tools.proof_report)

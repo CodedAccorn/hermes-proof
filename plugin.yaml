@@ -6,3 +6,9 @@ requires_hermes: ">=0.23.1"
 provides_tools:
   - proof_verify
   - proof_report
+config_schema:
+  verification_root:
+    type: str
+    required: true
+    label: Verification root
+    description: Absolute directory HermesProof is allowed to verify

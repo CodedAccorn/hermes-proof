@@ -10,6 +10,8 @@ from tools import proof_report, proof_verify
 def main():
     with tempfile.TemporaryDirectory(prefix="hermes-proof-demo-") as directory:
         root = Path(directory)
+        os.environ["HERMES_PROOF_ROOT"] = str(root)
+        os.environ["HERMES_HOME"] = str(root / "hermes-home")
         artifact = root / "deployment.txt"
         artifact.write_text("DEPLOYED\n", encoding="utf-8")
         previous = Path.cwd()

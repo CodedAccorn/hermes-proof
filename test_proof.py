@@ -13,7 +13,8 @@ spec.loader.exec_module(tools)
 
 def _configure(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv('HERMES_PROOF_DATA_DIR', str(tmp_path / 'evidence'))
+    monkeypatch.setenv('HERMES_PROOF_ROOT', str(tmp_path))
+    monkeypatch.setenv('HERMES_HOME', str(tmp_path / 'hermes-home'))
 
 def test_verified(tmp_path, monkeypatch):
     _configure(tmp_path, monkeypatch)
@@ -72,7 +73,46 @@ def test_report_persists_and_retrieves_by_id(tmp_path, monkeypatch):
     latest = json.loads(tools.proof_report())
     by_id = json.loads(tools.proof_report({'report_id': created['id']}))
     assert latest == created == by_id
-    assert (tmp_path / 'evidence' / f"{created['id']}.json").is_file()
+    assert (tmp_path / 'hermes-home' / 'hermes-proof' / 'evidence' / f"{created['id']}.json").is_file()
+
+
+def test_unset_root_fails_closed(tmp_path, monkeypatch):
+    _configure(tmp_path, monkeypatch)
+    monkeypatch.delenv('HERMES_PROOF_ROOT')
+    (tmp_path / 'app.txt').write_text('ready', encoding='utf-8')
+    report = json.loads(tools.proof_verify([{'type': 'file_exists', 'target': 'app.txt'}]))
+    assert report['status'] == 'unverified'
+    assert report['error'] == 'verification root is not configured'
+
+
+def test_hermes_home_is_forbidden_without_secret_disclosure(tmp_path, monkeypatch):
+    _configure(tmp_path, monkeypatch)
+    home = tmp_path / 'hermes-home'
+    home.mkdir()
+    (home / 'auth.json').write_text('{"token":"do-not-disclose"}', encoding='utf-8')
+    report_text = tools.proof_verify([
+        {'type': 'json_equals', 'target': 'hermes-home/auth.json', 'path': '$',
+         'expected': {'token': 'do-not-disclose'}}
+    ])
+    report = json.loads(report_text)
+    assert report['status'] == 'unverified'
+    assert 'do-not-disclose' not in json.dumps(report['checks'][0]['evidence'].get('observed'))
+
+
+def test_sensitive_targets_are_forbidden(tmp_path, monkeypatch):
+    _configure(tmp_path, monkeypatch)
+    targets = ['.env', '.env.local', 'private.pem', 'private.key',
+               '.ssh/id_ed25519', '.aws/credentials',
+               '.config/gcloud/application_default_credentials.json']
+    for target in targets:
+        path = tmp_path / target
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text('secret', encoding='utf-8')
+    report = json.loads(tools.proof_verify([
+        {'type': 'file_contains', 'target': target, 'expected': 'secret'} for target in targets
+    ]))
+    assert report['status'] == 'unverified'
+    assert all(check['status'] == 'unverified' for check in report['checks'])
 
 
 def test_report_survives_fresh_process(tmp_path, monkeypatch):

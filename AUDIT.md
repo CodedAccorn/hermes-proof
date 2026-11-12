@@ -24,6 +24,9 @@ Release-critical defects found:
 - Persist one immutable JSON file per report and atomically update a latest-report pointer.
 - Remove lifecycle hooks from the v0.2 manifest/registration until an installed official Hermes API can validate them.
 - Keep all network verification out of v0.2; HTTP security belongs to the v1.0 hardened transport.
+- Require an explicitly configured verification root; never infer it from the process working directory.
+- Refuse active Hermes-profile and credential-like targets before reading them.
+- Store evidence beneath the active profile returned by Hermes' official `get_hermes_home()` API.
 
 ## Validation record and boundary
 
